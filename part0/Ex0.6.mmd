@@ -1,0 +1,12 @@
+sequenceDiagram
+    participant Browser
+    participant Server
+
+    Note over Browser: JS code updates notes list in Browser
+    Browser->>Server: POST https://studies.cs.helsinki.fi/exampleapp/new_note_spa
+    Note right of Browser: Browser sends data as JSON string
+    activate Server
+    Server-->>Browser: "note created"
+    deactivate Server
+    
+ 

@@ -1,0 +1,33 @@
+sequenceDiagram
+    participant Browser
+    participant Server
+
+    Browser->>Server: POST https://studies.cs.helsinki.fi/exampleapp/new_note
+    activate Server
+    Note left of Server: Server processes the POST request
+    Server-->>Browser: URL redirect to https://studies.cs.helsinki.fi/exampleapp/notes
+    deactivate Server
+
+    Browser->>Server: GET https://studies.cs.helsinki.fi/exampleapp/notes
+    activate Server
+    Server-->>Browser: HTML document
+    deactivate Server
+    
+    Browser->>Server: GET https://studies.cs.helsinki.fi/exampleapp/main.css
+    activate Server
+    Server-->>Browser: CSS file
+    deactivate Server
+
+    Browser->>Server: GET https://studies.cs.helsinki.fi/exampleapp/main.js
+    activate Server
+    Server-->>Browser: JS file
+    deactivate Server
+
+    Note right of Browser: Browser executes the JS code, which instructs it to fetch the JSON file from the server
+
+    Browser->>Server: GET https://studies.cs.helsinki.fi/exampleapp/data.json
+    activate Server
+    Server-->>Browser: JSON file
+    deactivate Server
+
+    Note right of Browser: Browser executes the callback function that renders the page
