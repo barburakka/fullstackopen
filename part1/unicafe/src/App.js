@@ -5,15 +5,23 @@ const Heading = ({text}) => <h2>{text}</h2>
 const Statistics = (props) => {
   console.log(props)
   const { good, neutral, bad } = props
+  let total = good + neutral + bad
   
+  if ( total === 0) {
+    return (
+      <div>
+        No feedback received yet.
+      </div>
+    )
+  }
   return (
     <div>
       <p>Good: {good}</p>
       <p>Neutral: {neutral}</p>
       <p>Bad: {bad}</p>
-      <p>Total: {good + neutral + bad}</p>
-      <p>Average: { ( good - bad ) / ( good + neutral + bad) }</p>
-      <p>Positive: { good / ( good + neutral + bad) * 100 }%</p>
+      <p>Total: {total}</p>
+      <p>Average: { ( good - bad ) / total }</p>
+      <p>Positive: { good / total * 100 }%</p>
     </div>
   )
 }
