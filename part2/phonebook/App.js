@@ -1,11 +1,30 @@
 import { useState, useEffect } from 'react'
-import axios from 'axios'
+import comms from './services/comms'
 
-const Persons = ({ persons }) => {
+const Persons = ({ phonebook, filterText, updateHook }) => {
+  
+  const personsToShow = ( filterText === '' )
+    ? phonebook
+    : phonebook.filter(person => person.name.toLowerCase().includes(filterText.toLowerCase()))
+
+  const deletePerson = (id) => {
+    const name = phonebook.find(n => n.id === id).name
+
+    if (window.confirm(`Do you really want to delete ${name}?`)) {
+      comms
+        .remove(id)
+        .then(response => {
+          updateHook(phonebook.filter(n => n.id !== id))
+      })
+    }
+  }
+
   return ( 
-    persons.map(person => 
+    personsToShow.map(person => 
       <div key={person.id}>
         {person.name} {person.number}
+        &nbsp;
+        <button onClick={() => deletePerson(person.id)}>Delete</button>
       </div>
     )
   )
@@ -19,12 +38,12 @@ const Filter = ( { filter, filterHook } ) => {
 
   return (
     <div>
-        Filter shown with <input value={filter} onChange={filterChange}/>
+        Filter shown with <input id="filtertInput" value={filter} onChange={filterChange}/>
     </div>
   )
 }
 
-const PersonForm = ( { phonebook, addHook } ) => {
+const PersonForm = ( { phonebook, updateHook } ) => {
   const [newName, setNewName] = useState('')
   const [newNumber, setNewNumber] = useState('')
 
@@ -34,30 +53,48 @@ const PersonForm = ( { phonebook, addHook } ) => {
     const names = phonebook.map(person => person.name)
     
     if (names.includes(newName)) {
-      alert(`${newName} is already added to phonebook`)
-      setNewName('')
-      setNewNumber('')
+      if ( phonebook.find(n => n.name === newName).number === newNumber ) {
+        alert(`${newName} is already added to phonebook`)
+        setNewName('')
+        setNewNumber('')
+      }
+      else {
+        alert(`${newName} is already added to phonebook, replace the existing number with the new number?`)
+        const record = phonebook.find(n => n.name === newName)
+        const newRecord = { ...record, number: newNumber }
+        const newRecordId = newRecord.id
+        comms
+          .update(newRecordId, newRecord)
+          .then(returnedRecord => {
+            updateHook(phonebook.map(record => record.id !== newRecordId ? record : returnedRecord))
+          })
+        setNewName('')
+        setNewNumber('')
+      }
     }
     else {
       const personObject = {
         name: newName,
-        number: newNumber,
-        id: phonebook.length + 1
+        number: newNumber
       }
  
-      addHook(phonebook.concat(personObject))
-      setNewName('')
-      setNewNumber('')
+      comms
+        .create(personObject)
+        .then(response => {
+          updateHook(phonebook.concat(response))
+          setNewName('')
+          setNewNumber('')
+      })
     }
   }
 
   return (
     <form>
         <div>
-          name: <input value={newName} onChange={(event) => setNewName(event.target.value)}/>
+          name: <input id= "nameInput" value={newName} onChange={(event) => setNewName(event.target.value)}/>
         </div>
         <div>
-          number: <input value={newNumber} onChange={(event) => setNewNumber(event.target.value)}/>
+          number: <input id="numberInput" value={newNumber} onChange={(event) => setNewNumber(event.target.value)}/>
         </div>
         <div>
           <button type="submit" onClick={addPerson}>add</button>
@@ -70,15 +107,11 @@ const App = () => {
   const [persons, setPersons] = useState([]) 
   const [newFilter, setNewFilter] = useState('')
 
-  const personsToShow = ( newFilter === '' )
-    ? persons
-    : persons.filter(person => person.name.toLowerCase().includes(newFilter.toLowerCase()))
-
   useEffect(() => {
-    axios
-      .get('http://localhost:3001/persons')
+    comms
+      .retrieve()
       .then(response => {
-        setPersons(response.data)
+        setPersons(response)
       })
   }, [])
 
@@ -87,9 +120,9 @@ const App = () => {
       <h2>Phonebook</h2>
       <Filter filter={newFilter} filterHook={setNewFilter} />
       <h3>Add new</h3>
-      <PersonForm phonebook={persons} addHook={setPersons} />
+      <PersonForm phonebook={persons} updateHook={setPersons} />
       <h3>Numbers</h3>
-      <Persons persons={personsToShow} />
+      <Persons phonebook={persons} filterText={newFilter} updateHook={setPersons} />
     </div>
   )
 }
