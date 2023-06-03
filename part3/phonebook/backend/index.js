@@ -2,13 +2,14 @@ require('dotenv').config()
 const express = require('express')
 const morgan = require('morgan')
 const cors = require('cors')
+const mongoose = require('mongoose')
 const Person = require('./models/person')
 
-morgan.token('data', function (req, res) { 
-  dataString = JSON.stringify(req.body)
+morgan.token('data', function (req, res) {
+  const dataString = JSON.stringify(req.body)
   if (dataString !== '{}') {
     return dataString
-    }
+  }
 })
 
 const app = express()
@@ -28,7 +29,7 @@ app.get('/info', (request, response) => {
   const requestTime = new Date()
   Person.find({}).then(persons => {
     response.send( `<div>Phonebook has info for ${persons.length} people</div><p>${requestTime.toUTCString()}</p>` )
-  })  
+  })
 })
 
 app.get('/api/persons/:id', (request, response, next) => {
@@ -45,52 +46,35 @@ app.get('/api/persons/:id', (request, response, next) => {
 
 app.delete('/api/persons/:id', (request, response, next) => {
   Person.findByIdAndRemove(request.params.id)
-  .then(result => {
-    response.status(204).end()
-  })
-  .catch(error => next(error))
+    .then( () => {
+      response.status(204).end()
+    })
+    .catch(error => next(error))
 })
 
-app.post('/api/persons', (request, response) => {
+app.post('/api/persons', (request, response, next) => {
   const body = request.body
 
-  if (!body.name) {
-    return response.status(400).json({ 
-      error: 'Name missing' 
-    })
-  }
-
-  if (!body.number) {
-    return response.status(400).json({ 
-      error: 'Number missing' 
-    })
-  }
-
-  /* if (persons.find(person => person.name === body.name)) {
-    return response.status(400).json({ 
-      error: 'Name already exists' 
-    })
-  } */
-  
   const newPerson = new Person({
     name: body.name,
     number: body.number
   })
 
-  newPerson.save().then(savedPerson => {
-    response.json(savedPerson)
-  })
+  newPerson
+    .save()
+    .then(savedPerson => {
+      response.json(savedPerson)
+    })
+    .catch(error => next(error))
 })
 
 app.put('/api/persons/:id', (request, response, next) => {
-  const body = request.body
+  const { name, number } = request.body
 
-  const person = {
-    name: body.name,
-    number: body.number
-  }
-
-  Person.findByIdAndUpdate(request.params.id, person, { new: true })
+  Person.findByIdAndUpdate(
+    request.params.id,
+    { name, number },
+    { new: true, runValidators: true, context: 'query' } )
     .then(updatedPerson => {
       response.json(updatedPerson)
     })
@@ -108,7 +92,9 @@ const errorHandler = (error, request, response, next) => {
 
   if (error.name === 'CastError') {
     return response.status(400).send({ error: 'Wrong id' })
-  } 
+  } else if (error.name === 'ValidationError') {
+    return response.status(400).json({ error: error.message })
+  }
 
   next(error)
 }
@@ -116,6 +102,15 @@ const errorHandler = (error, request, response, next) => {
 app.use(errorHandler)
 
 const PORT = process.env.PORT || 3001
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`)
-})
+const url = process.env.MONGODB_URI
+
+mongoose.connect(url)
+  .then( () => {
+    console.log('connected to MongoDB')
+    app.listen(PORT, () => {
+      console.log(`Server running on port ${PORT}`)
+    })
+  })
+  .catch((error) => {
+    console.log('error connecting to MongoDB:', error.message)
+  })
